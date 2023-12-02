@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/browser"
@@ -40,17 +41,21 @@ type View struct {
 	md     goldmark.Markdown
 	wv     webview.WebView
 	fsw    *fsnotify.Watcher
+	gt     Gemtext
 }
 
 func NewView(source string) (*View, error) {
-	md := goldmark.New(
-		goldmark.WithExtensions(extension.GFM, extension.Typographer),
-		// goldmark.WithParserOptions(
-		// 	parser.WithAutoHeadingID(),
-		// ),
-		goldmark.WithRendererOptions(
-			html.WithUnsafe()),
-	)
+	var md goldmark.Markdown
+	if !strings.HasSuffix(source, ".gmi") {
+		md = goldmark.New(
+			goldmark.WithExtensions(extension.GFM, extension.Typographer),
+			// goldmark.WithParserOptions(
+			// 	parser.WithAutoHeadingID(),
+			// ),
+			goldmark.WithRendererOptions(
+				html.WithUnsafe()),
+		)
+	}
 
 	fsw, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -119,14 +124,26 @@ func (v *View) render() error {
 	if err != nil {
 		return err
 	}
-	input, err := io.ReadAll(inputf)
-	if err != nil {
-		return err
-	}
 
 	var content bytes.Buffer
-	if err := v.md.Convert(input, &content); err != nil {
-		return err
+	if v.md != nil {
+		input, err := io.ReadAll(inputf)
+		if err != nil {
+			return err
+		}
+		if err := v.md.Convert(input, &content); err != nil {
+			return err
+		}
+	} else {
+		gt, err := ParseGemtext(inputf)
+		if err != nil {
+			return err
+		}
+		if err := GemtextToHTML(gt, v.gt, &content); err != nil {
+			return err
+		}
+		v.gt = gt
+		// log.Printf("%s", gt, content.String())
 	}
 
 	// log.Printf("html: %s", content)

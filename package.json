@@ -4,5 +4,26 @@
     "eslint": "^8.48.0",
     "eslint-plugin-prettier": "^5.0.0",
     "prettier": "^3.0.3"
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "es6": true
+    },
+    "parserOptions": {
+      "ecmaVersion": 8
+    },
+    "extends": [
+      "eslint:recommended"
+    ],
+    "plugins": [
+      "prettier"
+    ],
+    "rules": {
+      "prettier/prettier": "error"
+    }
+  },
+  "prettier": {
+    "trailingComma": "all"
   }
 }

@@ -6,5 +6,25 @@ pre {
   padding: 1em 1em;
   background-color: #444;
   color: white;
-  border-radius: .5em;
+  border-radius: 0.5em;
+}
+
+.icon {
+  display: inline-block;
+  vertical-align: -0.125em;
+}
+
+.changed {
+  animation: flash 1s ease-in-out;
+}
+
+@keyframes flash {
+  0% {
+    background-color: rgb(255, 243, 205);
+    opacity: 1;
+  }
+  100% {
+    background: none;
+    opacity: 1;
+  }
 }
