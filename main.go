@@ -12,7 +12,10 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/browser"
@@ -160,18 +163,21 @@ func (v *View) render() error {
 }
 
 func (v *View) watch() {
+	debounce := NewDebouncer(500 * time.Millisecond)
 	for {
 		select {
 		case event, ok := <-v.fsw.Events:
 			if !ok {
 				return
 			}
-			log.Println("event:", event)
-			if event.Name == v.source && (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) {
-				err := v.render()
-				if err != nil {
-					log.Printf("render error: %v", err)
-				}
+			log.Printf("event: %v", event)
+			if filepath.Clean(event.Name) == v.source && (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) {
+				debounce(func() {
+					err := v.render()
+					if err != nil {
+						log.Printf("render error: %v", err)
+					}
+				})
 			}
 
 		case err, ok := <-v.fsw.Errors:
@@ -183,13 +189,43 @@ func (v *View) watch() {
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Debounce
+////////////////////////////////////////////////////////////////////////////////
+
+type debouncer struct {
+	mu    sync.Mutex
+	after time.Duration
+	timer *time.Timer
+}
+
+func NewDebouncer(after time.Duration) func(f func()) {
+	d := &debouncer{after: after}
+
+	return func(f func()) {
+		d.add(f)
+	}
+}
+
+func (d *debouncer) add(f func()) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.timer != nil {
+		d.timer.Stop()
+	}
+	d.timer = time.AfterFunc(d.after, f)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 func main_() error {
 	flag.Parse()
 	if len(flag.Args()) == 0 {
 		return errors.New("missing file")
 	}
 	inputp := flag.Args()[0]
-	view, err := NewView(inputp)
+	view, err := NewView(filepath.Clean(inputp))
 	if err != nil {
 		return err
 	}
